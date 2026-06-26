@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "self_insert_xp" ON public.xp_events;

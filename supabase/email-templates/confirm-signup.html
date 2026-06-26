@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <body style="margin:0;background:#070711;color:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#070711;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#111123;border:1px solid #2b2d42;border-radius:22px;overflow:hidden;">
+            <tr>
+              <td style="padding:32px;background:linear-gradient(135deg,#6d5dfc,#10d7e2);">
+                <div style="font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#eef2ff;">Operation Global Scholar</div>
+                <h1 style="margin:12px 0 0;font-size:30px;line-height:1.15;color:#ffffff;">Confirm your mission account</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;">
+                <p style="margin:0 0 16px;color:#cbd5e1;font-size:16px;line-height:1.6;">Welcome, Scholar. Confirm your email address to activate your dashboard for scholarships, IELTS prep, documents, and deadlines.</p>
+                <p style="margin:0 0 28px;color:#94a3b8;font-size:14px;line-height:1.6;">Account email: <strong style="color:#f8fafc;">{{ .Email }}</strong></p>
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:14px;">Confirm sign up</a>
+                <div style="margin-top:28px;padding:16px;border:1px solid #303249;border-radius:14px;background:#0b0b18;color:#cbd5e1;">
+                  <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#38bdf8;">Backup code</div>
+                  <div style="margin-top:8px;font-size:28px;letter-spacing:6px;font-weight:700;color:#ffffff;">{{ .Token }}</div>
+                </div>
+                <p style="margin:28px 0 0;color:#64748b;font-size:12px;line-height:1.6;">If you did not create this account, you can safely ignore this email.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
