@@ -41,3 +41,5 @@ google-cloud-credentials/
 *.njsproj
 *.sln
 *.sw?
+
+tmpInspect.mjs
