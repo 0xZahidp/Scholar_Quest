@@ -8,14 +8,30 @@ import { RadialRing } from "@/components/RadialRing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { fireXp } from "@/components/XpFloat";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { fireXp } from "@/components/xp-float-bus";
 import { toast } from "sonner";
 import { Wallet, Plus, Trash2, TrendingUp, TrendingDown, PiggyBank, Target } from "lucide-react";
 import {
   FINANCE_KINDS,
-  getFinance, addFinanceEntry, deleteFinanceEntry, setBudgetGoal,
+  getFinance,
+  addFinanceEntry,
+  deleteFinanceEntry,
+  setBudgetGoal,
 } from "@/lib/finance.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -65,7 +81,10 @@ function FinancesPage() {
   const delMut = useMutation({ mutationFn: delFn, onSuccess: invalidate });
   const goalMut = useMutation({
     mutationFn: goalFn,
-    onSuccess: () => { toast.success("Goal updated"); invalidate(); },
+    onSuccess: () => {
+      toast.success("Goal updated");
+      invalidate();
+    },
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
 
@@ -85,7 +104,12 @@ function FinancesPage() {
 
   const [open, setOpen] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ kind: "savings" as typeof FINANCE_KINDS[number], amount: "", label: "", occurred_on: today });
+  const [form, setForm] = useState({
+    kind: "savings" as (typeof FINANCE_KINDS)[number],
+    amount: "",
+    label: "",
+    occurred_on: today,
+  });
 
   const [goalOpen, setGoalOpen] = useState(false);
   const [goalInput, setGoalInput] = useState(String(goal || ""));
@@ -98,14 +122,26 @@ function FinancesPage() {
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
               <Wallet className="h-3.5 w-3.5" /> War Chest
             </div>
-            <h1 className="font-display text-3xl font-bold md:text-4xl">Fund your future, milestone by milestone.</h1>
-            <p className="text-sm text-muted-foreground">Track every dollar. Cross 25 / 50 / 75 / 100% to unlock XP rewards.</p>
+            <h1 className="font-display text-3xl font-bold md:text-4xl">
+              Fund your future, milestone by milestone.
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Track every dollar. Cross 25 / 50 / 75 / 100% to unlock XP rewards.
+            </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => { setGoalInput(String(goal || "")); setGoalOpen(true); }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setGoalInput(String(goal || ""));
+                setGoalOpen(true);
+              }}
+            >
               <Target className="mr-1 h-4 w-4" /> Set goal
             </Button>
-            <Button onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> Log entry</Button>
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" /> Log entry
+            </Button>
           </div>
         </header>
 
@@ -113,13 +149,20 @@ function FinancesPage() {
           <GlassCard className="flex items-center gap-5 p-6 md:col-span-1">
             <RadialRing value={pct} size={120} label="Saved" />
             <div>
-              <div className="text-xs uppercase tracking-widest text-muted-foreground">Goal progress</div>
+              <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                Goal progress
+              </div>
               <div className="mt-1 font-display text-2xl font-bold">
                 ${saved.toLocaleString()}
-                <span className="text-base text-muted-foreground"> / ${goal.toLocaleString() || "—"}</span>
+                <span className="text-base text-muted-foreground">
+                  {" "}
+                  / ${goal.toLocaleString() || "—"}
+                </span>
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {goal > 0 ? `${Math.max(0, goal - saved).toLocaleString()} to go` : "Set a goal to track milestones"}
+                {goal > 0
+                  ? `${Math.max(0, goal - saved).toLocaleString()} to go`
+                  : "Set a goal to track milestones"}
               </div>
             </div>
           </GlassCard>
@@ -128,14 +171,18 @@ function FinancesPage() {
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
               <TrendingUp className="h-3 w-3" /> Income
             </div>
-            <div className="mt-2 font-display text-2xl font-bold text-emerald-400">+${totals.income.toLocaleString()}</div>
+            <div className="mt-2 font-display text-2xl font-bold text-emerald-400">
+              +${totals.income.toLocaleString()}
+            </div>
           </GlassCard>
 
           <GlassCard className="p-5">
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
               <TrendingDown className="h-3 w-3" /> Expenses
             </div>
-            <div className="mt-2 font-display text-2xl font-bold text-rose-400">−${totals.expense.toLocaleString()}</div>
+            <div className="mt-2 font-display text-2xl font-bold text-rose-400">
+              −${totals.expense.toLocaleString()}
+            </div>
           </GlassCard>
         </div>
 
@@ -158,7 +205,12 @@ function FinancesPage() {
                     transition={{ delay: i * 0.02 }}
                     className="flex items-center gap-4 px-5 py-3"
                   >
-                    <div className={cn("grid h-10 w-10 place-items-center rounded-lg border border-border/40 bg-card/40", meta?.color)}>
+                    <div
+                      className={cn(
+                        "grid h-10 w-10 place-items-center rounded-lg border border-border/40 bg-card/40",
+                        meta?.color,
+                      )}
+                    >
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -186,32 +238,55 @@ function FinancesPage() {
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Log entry</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Log entry</DialogTitle>
+            </DialogHeader>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Type</Label>
-                  <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v as any })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={form.kind}
+                    onValueChange={(v) => setForm({ ...form, kind: v as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {FINANCE_KINDS.map((k) => (
-                        <SelectItem key={k} value={k}>{KIND_META[k].label}</SelectItem>
+                        <SelectItem key={k} value={k}>
+                          {KIND_META[k].label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label>Date</Label>
-                  <Input type="date" value={form.occurred_on} onChange={(e) => setForm({ ...form, occurred_on: e.target.value })} />
+                  <Input
+                    type="date"
+                    value={form.occurred_on}
+                    onChange={(e) => setForm({ ...form, occurred_on: e.target.value })}
+                  />
                 </div>
               </div>
               <div>
                 <Label>Label</Label>
-                <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Freelance gig, IELTS exam fee, monthly transfer..." />
+                <Input
+                  value={form.label}
+                  onChange={(e) => setForm({ ...form, label: e.target.value })}
+                  placeholder="Freelance gig, IELTS exam fee, monthly transfer..."
+                />
               </div>
               <div>
                 <Label>Amount (USD)</Label>
-                <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                />
               </div>
             </div>
             <DialogFooter>
@@ -219,9 +294,17 @@ function FinancesPage() {
                 disabled={addMut.isPending}
                 onClick={async () => {
                   const amt = Number(form.amount);
-                  if (!form.label.trim() || !(amt > 0)) { toast.error("Label and positive amount required"); return; }
+                  if (!form.label.trim() || !(amt > 0)) {
+                    toast.error("Label and positive amount required");
+                    return;
+                  }
                   await addMut.mutateAsync({
-                    data: { kind: form.kind, amount: amt, label: form.label.trim(), occurred_on: form.occurred_on },
+                    data: {
+                      kind: form.kind,
+                      amount: amt,
+                      label: form.label.trim(),
+                      occurred_on: form.occurred_on,
+                    },
                   } as any);
                   setOpen(false);
                   setForm({ kind: "savings", amount: "", label: "", occurred_on: today });
@@ -235,11 +318,19 @@ function FinancesPage() {
 
         <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Set savings goal</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Set savings goal</DialogTitle>
+            </DialogHeader>
             <div className="space-y-3">
               <div>
                 <Label>Target amount (USD)</Label>
-                <Input type="number" min="0" value={goalInput} onChange={(e) => setGoalInput(e.target.value)} placeholder="15000" />
+                <Input
+                  type="number"
+                  min="0"
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  placeholder="15000"
+                />
                 <p className="mt-1 text-xs text-muted-foreground">
                   Typical first-year overseas costs: $12K (Asia) – $40K (US/UK).
                 </p>
@@ -250,7 +341,10 @@ function FinancesPage() {
                 disabled={goalMut.isPending}
                 onClick={async () => {
                   const n = Number(goalInput);
-                  if (!(n >= 0)) { toast.error("Enter a valid amount"); return; }
+                  if (!(n >= 0)) {
+                    toast.error("Enter a valid amount");
+                    return;
+                  }
                   await goalMut.mutateAsync({ data: { goal: n } } as any);
                   setGoalOpen(false);
                 }}

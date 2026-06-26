@@ -37,6 +37,16 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   });
 }
 
+function isStaleServerFunctionRequest(error: unknown) {
+  if (error == null || typeof error !== "object") return false;
+  const message = "message" in error ? String(error.message) : "";
+  const stack = "stack" in error ? String(error.stack) : "";
+  const staleMessage =
+    message.includes("Cannot read properties of undefined (reading 'method')") ||
+    message.includes("Invalid server function ID");
+  return staleMessage && stack.includes("server-functions-handler");
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
@@ -44,6 +54,9 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
+      if (isStaleServerFunctionRequest(error)) {
+        return new Response("Stale server function request", { status: 410 });
+      }
       console.error(error);
       return new Response(renderErrorPage(), {
         status: 500,

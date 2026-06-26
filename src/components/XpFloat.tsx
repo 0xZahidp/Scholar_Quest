@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-
-let listeners: ((xp: number) => void)[] = [];
-export function fireXp(amount: number) { listeners.forEach((l) => l(amount)); }
+import { subscribeXp } from "./xp-float-bus";
 
 export function XpFloatHost() {
+  const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<{ id: number; xp: number; x: number }[]>([]);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   useEffect(() => {
     const fn = (xp: number) => {
       const id = Date.now() + Math.random();
       setItems((p) => [...p, { id, xp, x: 50 + (Math.random() * 30 - 15) }]);
       setTimeout(() => setItems((p) => p.filter((i) => i.id !== id)), 1700);
     };
-    listeners.push(fn);
-    return () => { listeners = listeners.filter((l) => l !== fn); };
+    return subscribeXp(fn);
   }, []);
-  if (typeof document === "undefined") return null;
+  if (!mounted) return null;
   return createPortal(
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[200] flex justify-center">
       {items.map((i) => (
@@ -28,6 +29,6 @@ export function XpFloatHost() {
         </div>
       ))}
     </div>,
-    document.body
+    document.body,
   );
 }

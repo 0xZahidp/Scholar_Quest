@@ -1,10 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
-import { awardXp } from "./xp-award.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { XP_REWARDS } from "./xp";
+import { awardUserXp } from "./xp-award";
 
-export const PROF_STATUSES = ["researching", "drafted", "emailed", "replied", "meeting", "accepted"] as const;
+export const PROF_STATUSES = [
+  "researching",
+  "drafted",
+  "emailed",
+  "replied",
+  "meeting",
+  "accepted",
+] as const;
 
 export const getProfessors = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -25,7 +32,12 @@ const Schema = z.object({
   field: z.string().max(160).optional().nullable(),
   email: z.string().email().max(160).optional().or(z.literal("")).nullable(),
   status: z.enum(PROF_STATUSES),
-  last_contact_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable().or(z.literal("")),
+  last_contact_on: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   notes: z.string().max(2000).optional().nullable(),
 });
 
@@ -48,16 +60,32 @@ export const upsertProfessor = createServerFn({ method: "POST" })
     let prev: string | null = null;
     if (data.id) {
       const { data: row } = await supabase
-        .from("professors").select("status").eq("id", data.id).eq("user_id", userId).maybeSingle();
+        .from("professors")
+        .select("status")
+        .eq("id", data.id)
+        .eq("user_id", userId)
+        .maybeSingle();
       prev = row?.status ?? null;
-      await supabase.from("professors").update(payload).eq("id", data.id).eq("user_id", userId);
+      const { error } = await supabase
+        .from("professors")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("user_id", userId);
+      if (error) throw error;
     } else {
-      await supabase.from("professors").insert(payload);
+      const { error } = await supabase.from("professors").insert(payload);
+      if (error) throw error;
     }
     let xp = 0;
-    if (data.status === "emailed" && prev !== "emailed" && prev !== "replied" && prev !== "meeting" && prev !== "accepted") {
+    if (
+      data.status === "emailed" &&
+      prev !== "emailed" &&
+      prev !== "replied" &&
+      prev !== "meeting" &&
+      prev !== "accepted"
+    ) {
       xp = XP_REWARDS.professor_emailed;
-      await awardXp(userId, xp, "professor_emailed", { name: data.name });
+      await awardUserXp(supabase, userId, xp, "professor_emailed", { name: data.name });
     }
     return { xp };
   });
@@ -67,6 +95,11 @@ export const deleteProfessor = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("professors").delete().eq("id", data.id).eq("user_id", userId);
+    const { error } = await supabase
+      .from("professors")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
     return { ok: true };
   });

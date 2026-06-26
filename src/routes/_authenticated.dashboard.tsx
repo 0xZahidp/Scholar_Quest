@@ -12,7 +12,7 @@ import { RadialRing } from "@/components/RadialRing";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fireXp } from "@/components/XpFloat";
+import { fireXp } from "@/components/xp-float-bus";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import {
@@ -70,11 +70,14 @@ function DashboardPage() {
   const completeMut = useMutation({
     mutationFn: (id: string) => completeFn({ data: { id } }),
     onSuccess: (r) => {
-      if (r.alreadyDone) return;
-      fireXp(r.xp);
-      confetti({ particleCount: 60, spread: 65, origin: { y: 0.7 } });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["xp"] });
+      if (r.alreadyDone) {
+        toast("Already checked in today, Commander.");
+        return;
+      }
+      fireXp(r.xp);
+      confetti({ particleCount: 60, spread: 65, origin: { y: 0.7 } });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not complete"),
   });
@@ -82,6 +85,8 @@ function DashboardPage() {
   const checkinMut = useMutation({
     mutationFn: () => checkinFn(),
     onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["xp"] });
       if (r.alreadyDone) {
         toast("Already checked in today, Commander.");
         return;
@@ -89,12 +94,15 @@ function DashboardPage() {
       fireXp(r.xp);
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       toast.success(`Streak: ${r.streak} day${r.streak === 1 ? "" : "s"}. +${r.xp} XP`);
-      qc.invalidateQueries({ queryKey: ["xp"] });
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not check in"),
   });
 
   const today = new Date().toISOString().slice(0, 10);
-  const alreadyCheckedIn = xpQ.data?.lastCheckin === today;
+  const dailyCheckinTask = tasksQ.data?.find(
+    (task) => task.title?.toLowerCase() === "daily check-in" || task.phase === "core",
+  );
+  const alreadyCheckedIn = xpQ.data?.lastCheckin === today || Boolean(dailyCheckinTask?.completed);
   const readiness = ieltsQ.data?.analysis?.readinessPercent ?? 0;
   const profile = profileQ.data;
 

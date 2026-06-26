@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Rocket, Mail, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({ meta: [{ title: "Sign in — Operation Global Scholar" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     mode: s.mode === "signin" || s.mode === "signup" || s.mode === "forgot" ? s.mode : undefined,

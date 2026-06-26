@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { awardXp } from "./xp-award.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { XP_REWARDS } from "./xp";
+import { awardUserXp } from "./xp-award";
 
 export const DOCUMENT_KINDS = [
   { key: "cv", label: "CV / Résumé", xp: XP_REWARDS.cv_uploaded },
@@ -67,17 +67,33 @@ export const upsertDocument = createServerFn({ method: "POST" })
         .eq("user_id", userId)
         .maybeSingle();
       prevStatus = prev?.status ?? null;
-      await supabase.from("documents").update(payload).eq("id", data.id).eq("user_id", userId);
+      const { error } = await supabase
+        .from("documents")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("user_id", userId);
+      if (error) throw error;
     } else {
       isNew = true;
-      await supabase.from("documents").insert(payload);
+      const { error } = await supabase.from("documents").insert(payload);
+      if (error) throw error;
     }
 
     // Award XP on first finalization
     if (data.status === "finalized" && prevStatus !== "finalized") {
       const meta = DOCUMENT_KINDS.find((k) => k.key === data.kind);
       xp = meta?.xp ?? XP_REWARDS.document_uploaded;
-      await awardXp(userId, xp, data.kind === "cv" ? "cv_uploaded" : data.kind === "sop" ? "sop_drafted" : "document_uploaded", { kind: data.kind, title: data.title });
+      await awardUserXp(
+        supabase,
+        userId,
+        xp,
+        data.kind === "cv"
+          ? "cv_uploaded"
+          : data.kind === "sop"
+            ? "sop_drafted"
+            : "document_uploaded",
+        { kind: data.kind, title: data.title },
+      );
     }
 
     return { xp, isNew };
@@ -99,6 +115,11 @@ export const deleteDocument = createServerFn({ method: "POST" })
     if (row?.file_path) {
       await supabase.storage.from("documents").remove([row.file_path]);
     }
-    await supabase.from("documents").delete().eq("id", data.id).eq("user_id", userId);
+    const { error } = await supabase
+      .from("documents")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
     return { ok: true };
   });

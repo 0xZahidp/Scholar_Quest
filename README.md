@@ -89,11 +89,16 @@ Only variables with the `VITE_` prefix are exposed to the browser. Never put pri
 
 ## Supabase Setup
 
-Apply database migrations:
+Apply the database schema from the Supabase SQL Editor:
 
-```bash
-supabase db push
+```txt
+supabase/master_reset_and_setup.sql
 ```
+
+This script is destructive: it drops and recreates the Scholar Quest database
+tables, policies, and functions. It does not delete Supabase Auth users. Supabase
+blocks direct SQL deletion of Storage objects, so clear `documents` bucket files
+from the Storage dashboard or through the Storage API if needed.
 
 Auth URL configuration for production:
 
@@ -158,4 +163,3 @@ npm run format    # Prettier
 - Rotate any API keys or OAuth client secrets that were ever pasted into chat, logs, screenshots, or committed history.
 - Supabase service-role keys must stay server-only.
 - Google OAuth client secrets must be stored only in Google Cloud, Supabase provider settings, or private deployment environment variables.
-

@@ -8,15 +8,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { fireXp } from "@/components/XpFloat";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { fireXp } from "@/components/xp-float-bus";
 import { toast } from "sonner";
-import { Target, Calendar, Plus, Trash2, Trophy, AlertTriangle, Flag, Sparkles } from "lucide-react";
+import {
+  Target,
+  Calendar,
+  Plus,
+  Trash2,
+  Trophy,
+  AlertTriangle,
+  Flag,
+  Sparkles,
+} from "lucide-react";
 import { SCHOLARSHIPS } from "@/lib/scholarships";
 import {
-  getDreams, removeDream, setDreamStatus,
-  addDeadline, removeDeadline,
+  getDreams,
+  removeDream,
+  setDreamStatus,
+  addDeadline,
+  removeDeadline,
 } from "@/lib/dreams.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -33,7 +58,10 @@ export const Route = createFileRoute("/_authenticated/mission")({
 });
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  researching: { label: "Researching", color: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+  researching: {
+    label: "Researching",
+    color: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  },
   preparing: { label: "Preparing", color: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" },
   applied: { label: "Applied", color: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
   interview: { label: "Interview", color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
@@ -76,15 +104,18 @@ function MissionPage() {
   });
   const addDlMut = useMutation({
     mutationFn: addDeadlineFn,
-    onSuccess: () => { toast.success("Deadline added"); invalidate(); },
+    onSuccess: () => {
+      toast.success("Deadline added");
+      invalidate();
+    },
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
   const delDlMut = useMutation({ mutationFn: removeDeadlineFn, onSuccess: invalidate });
 
   const dreams = q.data?.dreams ?? [];
-  const deadlines = (q.data?.deadlines ?? []).slice().sort((a: any, b: any) =>
-    a.due_date.localeCompare(b.due_date)
-  );
+  const deadlines = (q.data?.deadlines ?? [])
+    .slice()
+    .sort((a: any, b: any) => a.due_date.localeCompare(b.due_date));
 
   const [open, setOpen] = useState(false);
   const [dlTitle, setDlTitle] = useState("");
@@ -100,13 +131,17 @@ function MissionPage() {
           </div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="font-display text-3xl font-bold md:text-4xl">Your shortlist. Your war room.</h1>
+              <h1 className="font-display text-3xl font-bold md:text-4xl">
+                Your shortlist. Your war room.
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Track every scholarship you're chasing, plus the deadlines that decide your future.
               </p>
             </div>
             <Button asChild variant="secondary">
-              <Link to="/scholarships"><Plus className="mr-1 h-4 w-4" /> Browse vault</Link>
+              <Link to="/scholarships">
+                <Plus className="mr-1 h-4 w-4" /> Browse vault
+              </Link>
             </Button>
           </div>
         </header>
@@ -147,8 +182,12 @@ function MissionPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-2xl">{sch.flag}</div>
-                          <h3 className="mt-1 font-display text-base font-bold leading-tight">{sch.name}</h3>
-                          <div className="text-xs uppercase tracking-widest text-muted-foreground">{sch.country}</div>
+                          <h3 className="mt-1 font-display text-base font-bold leading-tight">
+                            {sch.name}
+                          </h3>
+                          <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                            {sch.country}
+                          </div>
                         </div>
                         <button
                           onClick={() => removeMut.mutate({ data: { id: d.id } } as any)}
@@ -161,22 +200,29 @@ function MissionPage() {
 
                       <div className="mt-3 flex items-center gap-2 text-xs">
                         <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className={cn(
-                          "font-medium",
-                          passed && "text-rose-400",
-                          danger && "text-amber-400",
-                        )}>
+                        <span
+                          className={cn(
+                            "font-medium",
+                            passed && "text-rose-400",
+                            danger && "text-amber-400",
+                          )}
+                        >
                           {passed
                             ? `Closed ${Math.abs(days)}d ago`
                             : days === 0
-                            ? "Due today"
-                            : `${days} days left`}
+                              ? "Due today"
+                              : `${days} days left`}
                         </span>
-                        <span className="text-muted-foreground">· {new Date(sch.deadline).toLocaleDateString()}</span>
+                        <span className="text-muted-foreground">
+                          · {new Date(sch.deadline).toLocaleDateString()}
+                        </span>
                       </div>
 
                       <div className="mt-3">
-                        <Badge variant="outline" className={cn("text-[10px]", STATUS_META[d.status]?.color)}>
+                        <Badge
+                          variant="outline"
+                          className={cn("text-[10px]", STATUS_META[d.status]?.color)}
+                        >
                           {STATUS_META[d.status]?.label ?? d.status}
                         </Badge>
                       </div>
@@ -184,12 +230,18 @@ function MissionPage() {
                       <div className="mt-auto pt-4">
                         <Select
                           value={d.status}
-                          onValueChange={(v) => statusMut.mutate({ data: { id: d.id, status: v as any } } as any)}
+                          onValueChange={(v) =>
+                            statusMut.mutate({ data: { id: d.id, status: v as any } } as any)
+                          }
                         >
-                          <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
                           <SelectContent>
                             {Object.entries(STATUS_META).map(([k, v]) => (
-                              <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                              <SelectItem key={k} value={k}>
+                                {v.label}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -211,14 +263,22 @@ function MissionPage() {
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="secondary"><Plus className="mr-1 h-4 w-4" /> Add deadline</Button>
+                <Button size="sm" variant="secondary">
+                  <Plus className="mr-1 h-4 w-4" /> Add deadline
+                </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>New deadline</DialogTitle></DialogHeader>
+                <DialogHeader>
+                  <DialogTitle>New deadline</DialogTitle>
+                </DialogHeader>
                 <div className="space-y-3">
                   <div>
                     <Label>Title</Label>
-                    <Input value={dlTitle} onChange={(e) => setDlTitle(e.target.value)} placeholder="GRE registration close" />
+                    <Input
+                      value={dlTitle}
+                      onChange={(e) => setDlTitle(e.target.value)}
+                      placeholder="GRE registration close"
+                    />
                   </div>
                   <div>
                     <Label>Date</Label>
@@ -227,7 +287,9 @@ function MissionPage() {
                   <div>
                     <Label>Category</Label>
                     <Select value={dlCat} onValueChange={setDlCat}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="scholarship">Scholarship</SelectItem>
                         <SelectItem value="exam">Exam</SelectItem>
@@ -241,9 +303,17 @@ function MissionPage() {
                 <DialogFooter>
                   <Button
                     onClick={async () => {
-                      if (!dlTitle || !dlDate) { toast.error("Title and date required"); return; }
-                      await addDlMut.mutateAsync({ data: { title: dlTitle, due_date: dlDate, category: dlCat } } as any);
-                      setOpen(false); setDlTitle(""); setDlDate(""); setDlCat("custom");
+                      if (!dlTitle || !dlDate) {
+                        toast.error("Title and date required");
+                        return;
+                      }
+                      await addDlMut.mutateAsync({
+                        data: { title: dlTitle, due_date: dlDate, category: dlCat },
+                      } as any);
+                      setOpen(false);
+                      setDlTitle("");
+                      setDlDate("");
+                      setDlCat("custom");
                     }}
                     disabled={addDlMut.isPending}
                   >
@@ -256,7 +326,9 @@ function MissionPage() {
 
           {deadlines.length === 0 ? (
             <GlassCard className="p-10 text-center">
-              <p className="text-sm text-muted-foreground">No deadlines yet. They appear automatically when you add scholarships.</p>
+              <p className="text-sm text-muted-foreground">
+                No deadlines yet. They appear automatically when you add scholarships.
+              </p>
             </GlassCard>
           ) : (
             <GlassCard className="divide-y divide-border/40 overflow-hidden">
@@ -272,21 +344,28 @@ function MissionPage() {
                     transition={{ delay: i * 0.02 }}
                     className="flex items-center gap-4 px-5 py-3"
                   >
-                    <div className={cn(
-                      "grid h-12 w-12 shrink-0 place-items-center rounded-lg border text-center font-display",
-                      passed && "border-rose-500/30 bg-rose-500/10 text-rose-300",
-                      danger && "border-amber-500/30 bg-amber-500/10 text-amber-300",
-                      !passed && !danger && "border-primary/30 bg-primary/10 text-primary",
-                    )}>
+                    <div
+                      className={cn(
+                        "grid h-12 w-12 shrink-0 place-items-center rounded-lg border text-center font-display",
+                        passed && "border-rose-500/30 bg-rose-500/10 text-rose-300",
+                        danger && "border-amber-500/30 bg-amber-500/10 text-amber-300",
+                        !passed && !danger && "border-primary/30 bg-primary/10 text-primary",
+                      )}
+                    >
                       <div>
-                        <div className="text-[10px] uppercase opacity-80">{new Date(dl.due_date).toLocaleDateString(undefined, { month: "short" })}</div>
-                        <div className="text-sm font-bold leading-none">{new Date(dl.due_date).getDate()}</div>
+                        <div className="text-[10px] uppercase opacity-80">
+                          {new Date(dl.due_date).toLocaleDateString(undefined, { month: "short" })}
+                        </div>
+                        <div className="text-sm font-bold leading-none">
+                          {new Date(dl.due_date).getDate()}
+                        </div>
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="truncate font-medium">{dl.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {dl.category} · {passed ? `${Math.abs(days)}d ago` : days === 0 ? "today" : `in ${days}d`}
+                        {dl.category} ·{" "}
+                        {passed ? `${Math.abs(days)}d ago` : days === 0 ? "today" : `in ${days}d`}
                       </div>
                     </div>
                     {danger && <AlertTriangle className="h-4 w-4 text-amber-400" />}

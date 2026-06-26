@@ -173,9 +173,10 @@ export const generateMissionBriefing = createServerFn({ method: "POST" })
 
     const briefing = buildMissionBriefing(profile, dreams, mocks);
 
-    await supabase
+    const { error } = await supabase
       .from("ai_briefings")
       .insert({ user_id: userId, kind: "mission", content: briefing });
+    if (error) throw error;
     return briefing;
   });
 

@@ -4,6 +4,7 @@ import { StarField } from "@/components/StarField";
 import { Rocket, Target, Trophy, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Operation Global Scholar — Mission Control for Future Scholars" },

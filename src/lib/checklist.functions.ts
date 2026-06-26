@@ -49,6 +49,7 @@ export const getChecklist = createServerFn({ method: "POST" })
         .from("checklist_items")
         .insert(template.map((title) => ({ user_id: userId, kind: data.kind, title })))
         .select("*");
+      if (insert.error) throw insert.error;
       rows = insert.data ?? [];
     }
     return rows;
@@ -60,27 +61,36 @@ export const toggleChecklistItem = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ToggleSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase
+    const { error } = await supabase
       .from("checklist_items")
       .update({ status: data.status, updated_at: new Date().toISOString() })
       .eq("id", data.id)
       .eq("user_id", userId);
+    if (error) throw error;
     return { ok: true };
   });
 
 const AddSchema = z.object({
   kind: z.enum(CHECKLIST_KINDS),
   title: z.string().min(1).max(200),
-  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  due_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .or(z.literal("")),
 });
 export const addChecklistItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => AddSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("checklist_items").insert({
-      user_id: userId, kind: data.kind, title: data.title, due_date: data.due_date || null,
+    const { error } = await supabase.from("checklist_items").insert({
+      user_id: userId,
+      kind: data.kind,
+      title: data.title,
+      due_date: data.due_date || null,
     });
+    if (error) throw error;
     return { ok: true };
   });
 
@@ -89,6 +99,11 @@ export const deleteChecklistItem = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("checklist_items").delete().eq("id", data.id).eq("user_id", userId);
+    const { error } = await supabase
+      .from("checklist_items")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
     return { ok: true };
   });

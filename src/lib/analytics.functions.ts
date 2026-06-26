@@ -20,8 +20,16 @@ export const getAnalytics = createServerFn({ method: "GET" })
       supabase.from("dream_scholarships").select("status").eq("user_id", userId),
       supabase.from("universities").select("status").eq("user_id", userId),
       supabase.from("documents").select("status").eq("user_id", userId),
-      supabase.from("ielts_mocks").select("overall,taken_on").eq("user_id", userId).order("taken_on"),
-      supabase.from("profiles").select("budget_goal,budget_saved,current_streak").eq("id", userId).maybeSingle(),
+      supabase
+        .from("ielts_mocks")
+        .select("overall,taken_on")
+        .eq("user_id", userId)
+        .order("taken_on"),
+      supabase
+        .from("profiles")
+        .select("budget_goal,budget_saved,current_streak")
+        .eq("id", userId)
+        .maybeSingle(),
     ]);
 
     const totalXp = (events ?? []).reduce((s, e) => s + (e.amount ?? 0), 0);
@@ -57,9 +65,10 @@ export const getAnalytics = createServerFn({ method: "GET" })
         tasksCompleted: (tasks ?? []).filter((t) => t.completed).length,
         dreams: (dreams ?? []).length,
         dreamsWon: (dreams ?? []).filter((d) => d.status === "won").length,
-        unisApplied: (unis ?? []).filter((u) => u.status === "applied" || u.status === "admitted").length,
+        unisApplied: (unis ?? []).filter((u) => u.status === "applied" || u.status === "admitted")
+          .length,
         unisAdmitted: (unis ?? []).filter((u) => u.status === "admitted").length,
-        docsFinal: (docs ?? []).filter((d) => d.status === "final").length,
+        docsFinal: (docs ?? []).filter((d) => d.status === "finalized").length,
         mocks: (mocks ?? []).length,
       },
       budget: {

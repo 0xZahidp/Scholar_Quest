@@ -1,10 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
-import { awardXp } from "./xp-award.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { XP_REWARDS } from "./xp";
+import { awardUserXp } from "./xp-award";
 
-export const UNI_STATUSES = ["researching", "shortlisted", "applied", "admitted", "rejected"] as const;
+export const UNI_STATUSES = [
+  "researching",
+  "shortlisted",
+  "applied",
+  "admitted",
+  "rejected",
+] as const;
 
 export const getUniversities = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -24,7 +30,11 @@ const Schema = z.object({
   country: z.string().max(80).optional(),
   program: z.string().max(200).optional(),
   status: z.enum(UNI_STATUSES),
-  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  deadline: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .or(z.literal("")),
   tuition_usd: z.number().nonnegative().max(1_000_000).optional().nullable(),
   ranking: z.number().int().min(1).max(5000).optional().nullable(),
   notes: z.string().max(2000).optional(),
@@ -57,14 +67,20 @@ export const upsertUniversity = createServerFn({ method: "POST" })
         .eq("user_id", userId)
         .maybeSingle();
       prev = row?.status ?? null;
-      await supabase.from("universities").update(payload).eq("id", data.id).eq("user_id", userId);
+      const { error } = await supabase
+        .from("universities")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("user_id", userId);
+      if (error) throw error;
     } else {
-      await supabase.from("universities").insert(payload);
+      const { error } = await supabase.from("universities").insert(payload);
+      if (error) throw error;
     }
 
     if (data.status === "applied" && prev !== "applied") {
       xp = XP_REWARDS.university_submitted;
-      await awardXp(userId, xp, "university_submitted", { name: data.name });
+      await awardUserXp(supabase, userId, xp, "university_submitted", { name: data.name });
     }
     return { xp };
   });
@@ -75,6 +91,11 @@ export const deleteUniversity = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => DeleteSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("universities").delete().eq("id", data.id).eq("user_id", userId);
+    const { error } = await supabase
+      .from("universities")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
     return { ok: true };
   });

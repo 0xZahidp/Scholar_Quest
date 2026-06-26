@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { awardXp } from "./xp-award.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { XP_REWARDS } from "./xp";
 import { SCHOLARSHIPS } from "./scholarships";
+import { awardUserXp } from "./xp-award";
 
 export const getDreams = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -34,18 +34,30 @@ export const addDream = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existing) return { added: false, xp: 0 };
 
-    await supabase.from("dream_scholarships").insert({
+    const { error: dreamError } = await supabase.from("dream_scholarships").insert({
       user_id: userId,
       scholarship_key: data.scholarship_key,
       status: "researching",
     });
-    await supabase.from("deadlines").insert({
+    if (dreamError) throw dreamError;
+
+    const { error: deadlineError } = await supabase.from("deadlines").insert({
       user_id: userId,
       title: `${sch.name} application due`,
       due_date: sch.deadline,
       category: "scholarship",
     });
-    await awardXp(userId, XP_REWARDS.scholarship_researched, "scholarship_researched", { key: data.scholarship_key });
+    if (deadlineError) throw deadlineError;
+
+    await awardUserXp(
+      supabase,
+      userId,
+      XP_REWARDS.scholarship_researched,
+      "scholarship_researched",
+      {
+        key: data.scholarship_key,
+      },
+    );
     return { added: true, xp: XP_REWARDS.scholarship_researched };
   });
 
@@ -56,7 +68,12 @@ export const removeDream = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => RemoveSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("dream_scholarships").delete().eq("id", data.id).eq("user_id", userId);
+    const { error } = await supabase
+      .from("dream_scholarships")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
     return { ok: true };
   });
 
@@ -70,17 +87,26 @@ export const setDreamStatus = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => StatusSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase
+    const { error } = await supabase
       .from("dream_scholarships")
       .update({ status: data.status })
       .eq("id", data.id)
       .eq("user_id", userId);
+    if (error) throw error;
 
     let xp = 0;
     if (data.status === "applied") xp = XP_REWARDS.scholarship_applied;
     if (data.status === "won") xp = XP_REWARDS.scholarship_won;
     if (xp > 0) {
-      await awardXp(userId, xp, data.status === "won" ? "scholarship_won" : "scholarship_applied", { dream_id: data.id });
+      await awardUserXp(
+        supabase,
+        userId,
+        xp,
+        data.status === "won" ? "scholarship_won" : "scholarship_applied",
+        {
+          dream_id: data.id,
+        },
+      );
     }
     return { ok: true, xp };
   });
@@ -96,11 +122,13 @@ export const addDeadline = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => DeadlineSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: row } = await supabase
+    const { data: row, error } = await supabase
       .from("deadlines")
       .insert({ ...data, user_id: userId })
       .select("*")
       .single();
+    if (error) throw error;
+    if (!row) throw new Error("Could not add deadline.");
     return row;
   });
 
@@ -111,6 +139,11 @@ export const removeDeadline = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => DelDeadlineSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("deadlines").delete().eq("id", data.id).eq("user_id", userId);
+    const { error } = await supabase
+      .from("deadlines")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
     return { ok: true };
   });

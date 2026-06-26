@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Lock, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
+  ssr: false,
   head: () => ({ meta: [{ title: "Reset password — Operation Global Scholar" }] }),
   component: ResetPasswordPage,
 });

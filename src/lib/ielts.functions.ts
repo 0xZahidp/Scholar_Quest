@@ -1,9 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
-import { awardXp } from "./xp-award.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { analyzeIelts, computeOverall, DEFAULT_TARGETS, type Mock, type Targets } from "./ielts-engine";
+import {
+  analyzeIelts,
+  computeOverall,
+  DEFAULT_TARGETS,
+  type Mock,
+  type Targets,
+} from "./ielts-engine";
 import { XP_REWARDS } from "./xp";
+import { awardUserXp } from "./xp-award";
 
 export const getIelts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -25,11 +31,13 @@ export const getIelts = createServerFn({ method: "GET" })
           target_writing: Number(target.target_writing ?? 7),
           target_speaking: Number(target.target_speaking ?? 7),
           target_overall: Number(
-            ((Number(target.target_listening ?? 7) +
-              Number(target.target_reading ?? 7) +
-              Number(target.target_writing ?? 7) +
-              Number(target.target_speaking ?? 7)) /
-              4).toFixed(1),
+            (
+              (Number(target.target_listening ?? 7) +
+                Number(target.target_reading ?? 7) +
+                Number(target.target_writing ?? 7) +
+                Number(target.target_speaking ?? 7)) /
+              4
+            ).toFixed(1),
           ),
           exam_date: target.exam_date ?? null,
         }
@@ -81,7 +89,10 @@ export const logMock = createServerFn({ method: "POST" })
 
     let bonus = XP_REWARDS.ielts_mock;
     if (overall >= 7) bonus += XP_REWARDS.band_7;
-    await awardXp(userId, bonus, overall >= 7 ? "band_7" : "ielts_mock", { overall, taken_on: data.taken_on });
+    await awardUserXp(supabase, userId, bonus, overall >= 7 ? "band_7" : "ielts_mock", {
+      overall,
+      taken_on: data.taken_on,
+    });
 
     return { ok: true, overall, xp: bonus };
   });
@@ -107,7 +118,11 @@ export const setIeltsTargets = createServerFn({ method: "POST" })
         target_writing: data.target_writing,
         target_speaking: data.target_speaking,
         target_overall:
-          (data.target_listening + data.target_reading + data.target_writing + data.target_speaking) / 4,
+          (data.target_listening +
+            data.target_reading +
+            data.target_writing +
+            data.target_speaking) /
+          4,
         exam_date: data.exam_date ?? null,
         updated_at: new Date().toISOString(),
       },

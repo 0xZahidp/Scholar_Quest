@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { awardXp } from "./xp-award.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { XP_REWARDS } from "./xp";
+import { awardUserXp } from "./xp-award";
 
 export const FINANCE_KINDS = ["income", "expense", "savings"] as const;
 
@@ -17,11 +17,7 @@ export const getFinance = createServerFn({ method: "GET" })
         .eq("user_id", userId)
         .order("occurred_on", { ascending: false })
         .limit(200),
-      supabase
-        .from("profiles")
-        .select("budget_goal,budget_saved")
-        .eq("id", userId)
-        .maybeSingle(),
+      supabase.from("profiles").select("budget_goal,budget_saved").eq("id", userId).maybeSingle(),
     ]);
     return {
       entries: entries ?? [],
@@ -51,7 +47,10 @@ export const addFinanceEntry = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => EntrySchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("finance_entries").insert({ ...data, user_id: userId });
+    const { error: insertError } = await supabase
+      .from("finance_entries")
+      .insert({ ...data, user_id: userId });
+    if (insertError) throw insertError;
 
     const { data: all } = await supabase
       .from("finance_entries")
@@ -68,20 +67,23 @@ export const addFinanceEntry = createServerFn({ method: "POST" })
     const prevSaved = Number(profile?.budget_saved ?? 0);
     const goal = Number(profile?.budget_goal ?? 0);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("profiles")
       .update({ budget_saved: saved, updated_at: new Date().toISOString() })
       .eq("id", userId);
+    if (updateError) throw updateError;
 
     let xp = 0;
     if (goal > 0) {
       const milestones = [0.25, 0.5, 0.75, 1.0];
-      const crossed = milestones.find(
-        (m) => prevSaved < goal * m && saved >= goal * m,
-      );
+      const crossed = milestones.find((m) => prevSaved < goal * m && saved >= goal * m);
       if (crossed) {
         xp = XP_REWARDS.budget_milestone;
-        await awardXp(userId, xp, "budget_milestone", { milestone: crossed, saved, goal });
+        await awardUserXp(supabase, userId, xp, "budget_milestone", {
+          milestone: crossed,
+          saved,
+          goal,
+        });
       }
     }
     return { xp, saved };
@@ -93,13 +95,22 @@ export const deleteFinanceEntry = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => DeleteSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase.from("finance_entries").delete().eq("id", data.id).eq("user_id", userId);
+    const { error: deleteError } = await supabase
+      .from("finance_entries")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (deleteError) throw deleteError;
     const { data: all } = await supabase
       .from("finance_entries")
       .select("kind,amount")
       .eq("user_id", userId);
     const saved = Math.max(0, recomputeSaved(all ?? []));
-    await supabase.from("profiles").update({ budget_saved: saved }).eq("id", userId);
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ budget_saved: saved, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (updateError) throw updateError;
     return { ok: true, saved };
   });
 
@@ -110,9 +121,10 @@ export const setBudgetGoal = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => GoalSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await supabase
+    const { error } = await supabase
       .from("profiles")
       .update({ budget_goal: data.goal, updated_at: new Date().toISOString() })
       .eq("id", userId);
+    if (error) throw error;
     return { ok: true };
   });

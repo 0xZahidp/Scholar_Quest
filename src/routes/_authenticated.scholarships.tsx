@@ -7,8 +7,14 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fireXp } from "@/components/XpFloat";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { fireXp } from "@/components/xp-float-bus";
 import { toast } from "sonner";
 import { Trophy, Search, Flame, Check, Plus, Sparkles } from "lucide-react";
 import { SCHOLARSHIPS, type Scholarship } from "@/lib/scholarships";
@@ -79,7 +85,8 @@ function ScholarshipsPage() {
           </div>
           <h1 className="font-display text-3xl font-bold md:text-4xl">Choose your battlefield.</h1>
           <p className="text-sm text-muted-foreground">
-            Hand-picked fully-funded programs. Add to your dream board to track deadlines and earn XP.
+            Hand-picked fully-funded programs. Add to your dream board to track deadlines and earn
+            XP.
           </p>
         </header>
 
@@ -95,7 +102,9 @@ function ScholarshipsPage() {
               />
             </div>
             <Select value={degree} onValueChange={setDegree}>
-              <SelectTrigger><SelectValue placeholder="Degree" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Degree" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All degrees</SelectItem>
                 <SelectItem value="Bachelor's">Bachelor's</SelectItem>
@@ -104,7 +113,9 @@ function ScholarshipsPage() {
               </SelectContent>
             </Select>
             <Select value={maxDifficulty} onValueChange={setMaxDifficulty}>
-              <SelectTrigger><SelectValue placeholder="Max difficulty" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Max difficulty" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="5">Easy (≤5)</SelectItem>
                 <SelectItem value="7">Moderate (≤7)</SelectItem>
@@ -138,8 +149,18 @@ function ScholarshipsPage() {
 }
 
 function ScholarshipCard({
-  s, index, isDream, onAdd, loading,
-}: { s: Scholarship; index: number; isDream: boolean; onAdd: () => void; loading: boolean }) {
+  s,
+  index,
+  isDream,
+  onAdd,
+  loading,
+}: {
+  s: Scholarship;
+  index: number;
+  isDream: boolean;
+  onAdd: () => void;
+  loading: boolean;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -151,10 +172,17 @@ function ScholarshipCard({
           <div>
             <div className="flex items-center gap-2 text-3xl">{s.flag}</div>
             <h3 className="mt-2 font-display text-lg font-bold leading-tight">{s.name}</h3>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">{s.country}</div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">
+              {s.country}
+            </div>
           </div>
           <div className="text-right">
-            <div className={cn("flex items-center gap-1 text-sm font-bold", difficultyColor(s.difficulty))}>
+            <div
+              className={cn(
+                "flex items-center gap-1 text-sm font-bold",
+                difficultyColor(s.difficulty),
+              )}
+            >
               <Flame className="h-3.5 w-3.5" /> {s.difficulty}/10
             </div>
             <div className="mt-1 text-xs text-muted-foreground">IELTS {s.ieltsMin}+</div>
@@ -165,7 +193,9 @@ function ScholarshipCard({
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {s.degrees.map((d) => (
-            <Badge key={d} variant="secondary" className="text-[10px]">{d}</Badge>
+            <Badge key={d} variant="secondary" className="text-[10px]">
+              {d}
+            </Badge>
           ))}
         </div>
 
@@ -176,7 +206,13 @@ function ScholarshipCard({
           </div>
           <div className="rounded-md border border-border/40 bg-card/40 px-2 py-1.5">
             <div className="text-muted-foreground">Deadline</div>
-            <div className="font-semibold">{new Date(s.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
+            <div className="font-semibold">
+              {new Date(s.deadline).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </div>
           </div>
         </div>
 

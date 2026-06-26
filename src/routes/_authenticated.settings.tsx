@@ -22,9 +22,10 @@ import {
   ShieldAlert,
   Trash2,
   MonitorSmartphone,
+  RotateCcw,
 } from "lucide-react";
 import { getProfile, updateProfile } from "@/lib/profile.functions";
-import { deleteAccount } from "@/lib/account.functions";
+import { deleteAccount, resetProgress } from "@/lib/account.functions";
 import { supabase } from "@/integrations/supabase/client";
 import type { UserIdentity } from "@supabase/supabase-js";
 
@@ -166,6 +167,8 @@ function SettingsPage() {
 
       <ChangePassword />
 
+      <ResetProgressZone />
+
       <GlassCard delay={0.2}>
         <div className="mb-4 flex items-center gap-2">
           <MonitorSmartphone className="h-4 w-4 text-primary-glow" />
@@ -189,6 +192,66 @@ function SettingsPage() {
   );
 }
 
+function ResetProgressZone() {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const reset = useServerFn(resetProgress);
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (confirm !== "RESET") return toast.error("Type RESET to confirm.");
+    setBusy(true);
+    try {
+      await reset();
+      await qc.cancelQueries();
+      qc.clear();
+      try {
+        localStorage.removeItem("ogs:mentor:history");
+      } catch {
+        /* ignore */
+      }
+      toast.success("Mission progress reset.");
+      navigate({ to: "/onboarding", replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not reset progress");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <GlassCard delay={0.23} className="border-amber-500/30">
+      <div className="mb-4 flex items-center gap-2">
+        <RotateCcw className="h-4 w-4 text-amber-400" />
+        <h3 className="font-display text-lg font-semibold">Overall reset</h3>
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Clear mission progress, XP, IELTS logs, documents, scholarships, finances, professors,
+        tasks, AI usage, and local Mira chat history. Your login stays active.
+      </p>
+      <div className="space-y-3">
+        <Field label="Type RESET to confirm">
+          <Input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="RESET"
+            className="border-amber-500/40"
+          />
+        </Field>
+        <Button
+          variant="outline"
+          onClick={submit}
+          disabled={busy || confirm !== "RESET"}
+          className="w-full border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
+        >
+          <RotateCcw className="mr-1.5 h-4 w-4" />
+          {busy ? "Resetting..." : "Reset all mission progress"}
+        </Button>
+      </div>
+    </GlassCard>
+  );
+}
+
 function DangerZone() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -203,7 +266,11 @@ function DangerZone() {
       await del();
       await qc.cancelQueries();
       qc.clear();
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // The auth user may already be gone; local cleanup/navigation still needs to finish.
+      }
       toast.success("Account deleted. Safe travels, Commander.");
       navigate({ to: "/", replace: true });
     } catch (err) {
@@ -364,18 +431,29 @@ function ChangePassword() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hasEmail, setHasEmail] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setHasEmail(data.user?.identities?.some((i) => i.provider === "email") ?? false);
+      setEmail(data.user?.email ?? null);
     });
   }, []);
 
   const submit = async () => {
+    if (!email) return toast.error("Email sign-in is not available for this account.");
+    if (!current) return toast.error("Enter your current password first.");
     if (!next || next.length < 6) return toast.error("Password must be at least 6 characters.");
     if (next !== confirm) return toast.error("New passwords do not match.");
+    if (current === next) return toast.error("Choose a new password different from the old one.");
     setBusy(true);
     try {
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email,
+        password: current,
+      });
+      if (verifyError) throw new Error("Current password is incorrect.");
+
       const { error } = await supabase.auth.updateUser({ password: next });
       if (error) throw error;
       toast.success("Password updated successfully.");
@@ -398,6 +476,24 @@ function ChangePassword() {
         <h3 className="font-display text-lg font-semibold">Change password</h3>
       </div>
       <div className="grid gap-4">
+        <Field label="Current password">
+          <div className="relative">
+            <Input
+              type={show ? "text" : "password"}
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              placeholder="Enter old password"
+            />
+            <button
+              type="button"
+              onClick={() => setShow((v) => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={show ? "Hide passwords" : "Show passwords"}
+            >
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </Field>
         <Field label="New password">
           <div className="relative">
             <Input
@@ -410,6 +506,7 @@ function ChangePassword() {
               type="button"
               onClick={() => setShow((v) => !v)}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={show ? "Hide passwords" : "Show passwords"}
             >
               {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -425,7 +522,7 @@ function ChangePassword() {
         </Field>
         <Button
           onClick={submit}
-          disabled={busy || !next || !confirm}
+          disabled={busy || !current || !next || !confirm}
           className="bg-gradient-to-r from-primary to-accent text-primary-foreground glow-primary"
         >
           <KeyRound className="mr-1.5 h-4 w-4" />

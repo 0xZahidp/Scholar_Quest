@@ -63,6 +63,22 @@ type MentorUsage = {
 
 type AuthSupabase = SupabaseClient<Database>;
 
+function toMentorMessages(
+  rows:
+    | {
+        role: string;
+        content: string;
+      }[]
+    | null,
+) {
+  return (rows ?? [])
+    .filter((row) => row.role === "user" || row.role === "assistant")
+    .map((row) => ({
+      role: row.role as "user" | "assistant",
+      content: row.content,
+    }));
+}
+
 function getDailyMessageLimit() {
   const parsed = Number.parseInt(process.env.MENTOR_DAILY_MESSAGE_LIMIT ?? "", 10);
   return Number.isFinite(parsed) && parsed > 0
@@ -106,9 +122,17 @@ function getTargetDegree(profile: unknown) {
 function buildSystemPrompt(snapshot: MentorSnapshot) {
   return `You are Commander Mira, the AI mission mentor for Operation Global Scholar.
 
-You coach graduates pursuing fully funded scholarships abroad. Be precise, motivating, and practical. Use second person. Keep replies under 220 words unless the user asks for depth. Use short markdown lists for plans.
+You coach graduates pursuing fully funded scholarships abroad. Be precise, motivating, and practical. Use second person.
 
-Ground advice in the scholar telemetry below. Do not invent missing grades, countries, universities, deadlines, IELTS scores, scholarships, professors, documents, finances, or uploaded file contents. If important data is missing, ask one sharp clarifying question.
+Response rules:
+- Lead with the most useful answer, not a greeting.
+- Keep replies under 220 words unless the user asks for depth.
+- Prefer short markdown lists, concrete next actions, and dated deadlines when telemetry includes dates.
+- Separate facts from assumptions.
+- When data is missing, ask one sharp clarifying question and still give the best next step.
+- Do not invent grades, countries, universities, deadlines, IELTS scores, scholarships, professors, documents, finances, or uploaded file contents.
+
+Ground advice in the scholar telemetry below.
 
 Scholar telemetry:
 ${JSON.stringify(snapshot, null, 2)}`;
@@ -116,8 +140,8 @@ ${JSON.stringify(snapshot, null, 2)}`;
 
 function compactMessages(messages: z.infer<typeof MessageSchema>[]) {
   return messages
-    .slice(-8)
-    .map((message) => ({ ...message, content: message.content.slice(0, 1600) }));
+    .slice(-10)
+    .map((message) => ({ ...message, content: message.content.slice(0, 1400) }));
 }
 
 function extractOpenAIText(json: unknown): string {
@@ -443,12 +467,34 @@ export const chatWithMentor = createServerFn({ method: "POST" })
       totalXp,
     };
 
-    const modelReply = await callMentorModel(data.messages, scholarSnapshot);
-    if (modelReply) return { reply: modelReply, usage };
+    const modelReply = await callMentorModel(data.messages, scholarSnapshot).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[Commander Mira] model provider unavailable; using local fallback. ${message}`);
+      return null;
+    });
 
     const lastUserMessage =
       [...data.messages].reverse().find((message) => message.role === "user")?.content ?? "";
-    return { reply: buildReply(lastUserMessage, scholarSnapshot), usage };
+
+    const reply = modelReply || buildReply(lastUserMessage, scholarSnapshot);
+    const { error: saveError } = await supabase.from("mentor_messages").insert([
+      {
+        user_id: userId,
+        role: "user",
+        content: lastUserMessage.slice(0, 4000),
+      },
+      {
+        user_id: userId,
+        role: "assistant",
+        content: reply.slice(0, 4000),
+      },
+    ]);
+
+    if (saveError) {
+      console.error("[Commander Mira] could not save mentor history:", saveError);
+    }
+
+    return { reply, usage };
   });
 
 export const getMentorUsage = createServerFn({ method: "GET" })
@@ -456,4 +502,29 @@ export const getMentorUsage = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     return getUsageForToday(supabase, userId);
+  });
+
+export const getMentorMessages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("mentor_messages")
+      .select("role,content,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .order("role", { ascending: true })
+      .limit(40);
+
+    if (error) throw error;
+    return toMentorMessages((data ?? []).reverse());
+  });
+
+export const clearMentorMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.from("mentor_messages").delete().eq("user_id", userId);
+    if (error) throw error;
+    return { ok: true };
   });

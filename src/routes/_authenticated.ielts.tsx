@@ -31,7 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { fireXp } from "@/components/XpFloat";
+import { fireXp } from "@/components/xp-float-bus";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import {
