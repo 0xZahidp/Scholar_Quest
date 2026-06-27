@@ -1,6 +1,7 @@
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
+import { reportServerCrash } from "./lib/crash-report.server";
 import { renderErrorPage } from "./lib/error-page";
 
 type ServerEntry = {
@@ -30,7 +31,11 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
     return response;
   }
 
-  console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
+  const error = consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`);
+  console.error(error);
+  void reportServerCrash(error, { route: "ssr-response-normalizer" }).catch(() => {
+    /* reporting must never break the error response */
+  });
   return new Response(renderErrorPage(), {
     status: 500,
     headers: { "content-type": "text/html; charset=utf-8" },
@@ -58,6 +63,9 @@ export default {
         return new Response("Stale server function request", { status: 410 });
       }
       console.error(error);
+      void reportServerCrash(error, { route: request.url }).catch(() => {
+        /* reporting must never break the error response */
+      });
       return new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },

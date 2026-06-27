@@ -61,6 +61,26 @@ function MentorPage() {
     queryFn: () => loadMessages(),
   });
 
+  const mut = useMutation({
+    mutationFn: (history: Msg[]) => chat({ data: { messages: history } }),
+    onSuccess: (r) => {
+      setUsage(r.usage);
+      setMessages((current) => {
+        const withReply: Msg[] = [...current, { role: "assistant", content: r.reply }];
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(withReply.slice(-20)));
+        } catch {
+          /* ignore */
+        }
+        return withReply;
+      });
+      setTimeout(() => {
+        messagesQuery.refetch();
+      }, 0);
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Mentor offline"),
+  });
+
   useEffect(() => {
     if (!messagesQuery.data) return;
     if (mut.isPending) return;
@@ -86,26 +106,6 @@ function MentorPage() {
     }
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
-
-  const mut = useMutation({
-    mutationFn: (history: Msg[]) => chat({ data: { messages: history } }),
-    onSuccess: (r) => {
-      setUsage(r.usage);
-      setMessages((current) => {
-        const withReply: Msg[] = [...current, { role: "assistant", content: r.reply }];
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(withReply.slice(-20)));
-        } catch {
-          /* ignore */
-        }
-        return withReply;
-      });
-      setTimeout(() => {
-        messagesQuery.refetch();
-      }, 0);
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Mentor offline"),
-  });
 
   const clearMut = useMutation({
     mutationFn: () => clearMessages(),

@@ -1,5 +1,6 @@
 import { createStart, createMiddleware, createCsrfMiddleware } from "@tanstack/react-start";
 
+import { reportServerCrash } from "./lib/crash-report.server";
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
@@ -24,6 +25,9 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
       return new Response("Stale server function request", { status: 410 });
     }
     console.error(error);
+    void reportServerCrash(error, { route: "request-middleware" }).catch(() => {
+      /* reporting must never break the error response */
+    });
     return new Response(renderErrorPage(), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },

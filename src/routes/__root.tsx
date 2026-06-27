@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Outlet,
   Link,
@@ -7,12 +8,13 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { XpFloatHost } from "@/components/XpFloat";
+import { reportClientCrash } from "@/lib/crash-report.functions";
 
 function NotFoundComponent() {
   return (
@@ -36,9 +38,27 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
+  const reportCrash = useServerFn(reportClientCrash);
+
   useEffect(() => {
     console.error("[RootErrorBoundary]", error);
-  }, [error]);
+    void reportCrash({
+      data: {
+        message: error.message || "Route render crash",
+        stack: error.stack,
+        url: typeof window === "undefined" ? undefined : window.location.href,
+        userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
+        route:
+          typeof window === "undefined"
+            ? undefined
+            : `${window.location.pathname}${window.location.search}`,
+        extra: { boundary: "root-route" },
+      },
+    }).catch(() => {
+      /* reporting must never block recovery */
+    });
+  }, [error, reportCrash]);
+
   return (
     <div className="grid min-h-screen place-items-center px-4">
       <div className="glass max-w-md rounded-2xl p-8 text-center">
@@ -143,12 +163,81 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
+      <ClientCrashReporter />
       <AuthInvalidator />
       <Outlet />
       <Toaster theme="dark" position="top-right" />
       <XpFloatHost />
     </QueryClientProvider>
   );
+}
+
+function getUnknownErrorDetails(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      message: error.message || "Unhandled browser error",
+      stack: error.stack,
+    };
+  }
+
+  if (typeof error === "string") {
+    return { message: error };
+  }
+
+  return {
+    message: "Unhandled browser error",
+    stack: JSON.stringify(error, null, 2),
+  };
+}
+
+function ClientCrashReporter() {
+  const reportCrash = useServerFn(reportClientCrash);
+  const lastReportAt = useRef(0);
+
+  useEffect(() => {
+    const send = (error: unknown, extra: Record<string, unknown>) => {
+      const now = Date.now();
+      if (now - lastReportAt.current < 5000) return;
+      lastReportAt.current = now;
+
+      const details = getUnknownErrorDetails(error);
+      void reportCrash({
+        data: {
+          message: details.message,
+          stack: details.stack,
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          route: `${window.location.pathname}${window.location.search}`,
+          extra,
+        },
+      }).catch(() => {
+        /* reporting must never create another crash */
+      });
+    };
+
+    const onError = (event: ErrorEvent) => {
+      send(event.error ?? event.message, {
+        kind: "window-error",
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+      });
+    };
+
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      send(event.reason, { kind: "unhandled-rejection" });
+    };
+
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, [reportCrash]);
+
+  return null;
 }
 
 function AuthInvalidator() {
