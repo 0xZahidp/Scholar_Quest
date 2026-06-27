@@ -61,6 +61,7 @@ export type Database = {
           updated_at: string;
           usage_date: string;
           user_id: string;
+          voice_seconds_used: number;
         };
         Insert: {
           created_at?: string;
@@ -69,6 +70,7 @@ export type Database = {
           updated_at?: string;
           usage_date?: string;
           user_id: string;
+          voice_seconds_used?: number;
         };
         Update: {
           created_at?: string;
@@ -77,6 +79,7 @@ export type Database = {
           updated_at?: string;
           usage_date?: string;
           user_id?: string;
+          voice_seconds_used?: number;
         };
         Relationships: [];
       };
@@ -555,6 +558,17 @@ export type Database = {
           allowed: boolean;
           daily_limit: number;
           messages_used: number;
+        }[];
+      };
+      consume_mentor_voice_seconds: {
+        Args: {
+          p_limit_seconds: number;
+          p_seconds: number;
+        };
+        Returns: {
+          allowed: boolean;
+          daily_limit_seconds: number;
+          voice_seconds_used: number;
         }[];
       };
       reset_user_progress: {

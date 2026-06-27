@@ -28,6 +28,7 @@ Scholar Quest helps applicants stay organized from the first shortlist to the fi
 - Track savings, expenses, and scholarship-related budgets.
 - Complete daily missions, earn XP, keep streaks, and unlock achievements.
 - Chat with an AI Mentor that can use the authenticated user's application context.
+- Pick a mentor model and practice speaking through realtime AI voice.
 - Authenticate with email/password, Google OAuth, password reset, and themed Supabase email templates.
 
 ## Tech Stack
@@ -110,6 +111,9 @@ GEMINI_MODEL=gemini-3.1-flash-lite
 OPENAI_API_KEY
 OPENAI_MODEL=gpt-5.4-nano
 MENTOR_DAILY_MESSAGE_LIMIT=12
+MENTOR_DAILY_VOICE_MINUTES=30
+MENTOR_REALTIME_MODEL=gpt-realtime
+MENTOR_REALTIME_VOICE=marin
 MENTOR_CONTEXT_ROW_LIMIT=25
 MENTOR_MAX_OUTPUT_TOKENS=450
 ```
@@ -163,7 +167,7 @@ supabase/email-templates
 
 The AI Mentor runs through server functions only. It can use the authenticated user's saved Scholar Quest data, including profile details, scholarships, universities, documents, IELTS scores, finance entries, professors, deadlines, tasks, achievements, and XP.
 
-Daily usage is stored in Supabase in `mentor_usage_daily` and consumed through an atomic Postgres function, so refreshing the app cannot bypass the message limit.
+Daily usage is stored in Supabase in `mentor_usage_daily` and consumed through atomic Postgres functions, so refreshing the app cannot bypass the message or 30-minute speaking-practice limits.
 
 Uploaded document text extraction is not enabled yet. The mentor can currently use uploaded document metadata and status, but not the contents inside PDFs or DOCX files.
 

@@ -8,14 +8,43 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, Bot, User, Eraser, Zap, Gauge, ShieldCheck, Database } from "lucide-react";
+import {
+  Send,
+  Sparkles,
+  Bot,
+  User,
+  Eraser,
+  Zap,
+  Gauge,
+  ShieldCheck,
+  Database,
+  Mic,
+  MicOff,
+  Brain,
+  Clock3,
+} from "lucide-react";
 import {
   chatWithMentor,
   clearMentorMessages,
+  consumeMentorVoiceTime,
+  createMentorRealtimeCall,
   getMentorMessages,
   getMentorUsage,
 } from "@/lib/mentor.functions";
+import {
+  DEFAULT_MENTOR_MODEL_ID,
+  MENTOR_MODEL_OPTIONS,
+  isMentorModelId,
+  type MentorModelId,
+} from "@/lib/mentor.models";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -30,9 +59,19 @@ export const Route = createFileRoute("/_authenticated/mentor")({
 });
 
 type Msg = { role: "user" | "assistant"; content: string };
-type MentorUsage = { limit: number; used: number; remaining: number; resetDate: string };
+type MentorUsage = {
+  limit: number;
+  used: number;
+  remaining: number;
+  resetDate: string;
+  voiceLimitSeconds: number;
+  voiceSecondsUsed: number;
+  voiceSecondsRemaining: number;
+};
 
 const STORAGE_KEY = "ogs:mentor:history";
+const MODEL_STORAGE_KEY = "ogs:mentor:model";
+const VOICE_SYNC_SECONDS = 10;
 
 const PROMPTS = [
   "Audit my profile and tell me the #1 thing to fix this week.",
@@ -43,13 +82,26 @@ const PROMPTS = [
 
 function MentorPage() {
   const chat = useServerFn(chatWithMentor);
+  const consumeVoiceTime = useServerFn(consumeMentorVoiceTime);
+  const createRealtimeCall = useServerFn(createMentorRealtimeCall);
   const loadUsage = useServerFn(getMentorUsage);
   const loadMessages = useServerFn(getMentorMessages);
   const clearMessages = useServerFn(clearMentorMessages);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [usage, setUsage] = useState<MentorUsage | null>(null);
+  const [modelId, setModelId] = useState<MentorModelId>(DEFAULT_MENTOR_MODEL_ID);
+  const [isListening, setIsListening] = useState(false);
+  const [isVoiceConnecting, setIsVoiceConnecting] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const voiceTimerRef = useRef<number | null>(null);
+  const lastVoiceTickRef = useRef<number | null>(null);
+  const voiceUsagePendingRef = useRef(false);
 
   const usageQuery = useQuery({
     queryKey: ["mentor-usage"],
@@ -62,7 +114,8 @@ function MentorPage() {
   });
 
   const mut = useMutation({
-    mutationFn: (history: Msg[]) => chat({ data: { messages: history } }),
+    mutationFn: (payload: { history: Msg[]; modelId: MentorModelId }) =>
+      chat({ data: { messages: payload.history, modelId: payload.modelId } }),
     onSuccess: (r) => {
       setUsage(r.usage);
       setMessages((current) => {
@@ -80,6 +133,25 @@ function MentorPage() {
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Mentor offline"),
   });
+
+  const voiceUsageMut = useMutation({
+    mutationFn: (seconds: number) => consumeVoiceTime({ data: { seconds } }),
+    onSuccess: (nextUsage) => {
+      setUsage(nextUsage);
+      if (nextUsage.voiceSecondsRemaining <= 0) {
+        stopVoiceConversation();
+        toast.error("Daily voice practice limit reached.");
+      }
+    },
+    onError: (e: unknown) => {
+      stopVoiceConversation();
+      toast.error(e instanceof Error ? e.message : "Could not update voice practice time");
+    },
+  });
+
+  useEffect(() => {
+    voiceUsagePendingRef.current = voiceUsageMut.isPending;
+  }, [voiceUsageMut.isPending]);
 
   useEffect(() => {
     if (!messagesQuery.data) return;
@@ -123,9 +195,40 @@ function MentorPage() {
     if (usageQuery.data) setUsage(usageQuery.data);
   }, [usageQuery.data]);
 
+  useEffect(() => {
+    try {
+      const storedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+      if (storedModel && isMentorModelId(storedModel)) setModelId(storedModel);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MODEL_STORAGE_KEY, modelId);
+    } catch {
+      /* ignore */
+    }
+  }, [modelId]);
+
+  useEffect(() => {
+    return () => {
+      closeVoiceConnection();
+      clearVoiceTimer();
+    };
+  }, []);
+
   const limitReached = Boolean(usage && usage.remaining <= 0);
+  const voiceLimitReached = Boolean(usage && usage.voiceSecondsRemaining <= 0);
   const canSend = Boolean(draft.trim()) && !mut.isPending && !limitReached;
+  const canStartVoice = !voiceLimitReached && !mut.isPending && !isVoiceConnecting;
   const usagePercent = usage ? Math.round((usage.used / usage.limit) * 100) : 0;
+  const voiceUsagePercent = usage
+    ? Math.round((usage.voiceSecondsUsed / usage.voiceLimitSeconds) * 100)
+    : 0;
+  const selectedModel =
+    MENTOR_MODEL_OPTIONS.find((option) => option.id === modelId) ?? MENTOR_MODEL_OPTIONS[0];
 
   function send(text: string) {
     const t = text.trim();
@@ -137,7 +240,139 @@ function MentorPage() {
     const next: Msg[] = [...messages, { role: "user", content: t }];
     setMessages(next);
     setDraft("");
-    mut.mutate(next);
+    setVoiceTranscript("");
+    mut.mutate({ history: next, modelId });
+  }
+
+  function clearVoiceTimer() {
+    if (voiceTimerRef.current) window.clearInterval(voiceTimerRef.current);
+    voiceTimerRef.current = null;
+    lastVoiceTickRef.current = null;
+  }
+
+  function collectVoiceElapsedSeconds() {
+    if (!lastVoiceTickRef.current) return 0;
+    const now = Date.now();
+    const elapsed = Math.floor((now - lastVoiceTickRef.current) / 1000);
+    if (elapsed > 0) lastVoiceTickRef.current = now;
+    return elapsed;
+  }
+
+  function recordVoiceElapsed() {
+    if (voiceUsagePendingRef.current) return;
+    const elapsed = collectVoiceElapsedSeconds();
+    if (elapsed > 0) voiceUsageMut.mutate(Math.min(elapsed, 60));
+  }
+
+  function startVoiceTimer() {
+    clearVoiceTimer();
+    lastVoiceTickRef.current = Date.now();
+    voiceTimerRef.current = window.setInterval(recordVoiceElapsed, VOICE_SYNC_SECONDS * 1000);
+  }
+
+  function closeVoiceConnection() {
+    dataChannelRef.current?.close();
+    dataChannelRef.current = null;
+    peerConnectionRef.current?.close();
+    peerConnectionRef.current = null;
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+  }
+
+  function stopVoiceConversation() {
+    closeVoiceConnection();
+    setIsListening(false);
+    setIsVoiceConnecting(false);
+    recordVoiceElapsed();
+    clearVoiceTimer();
+  }
+
+  async function startVoiceConversation() {
+    if (voiceLimitReached) {
+      toast.error("Daily voice practice limit reached. Come back tomorrow.");
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error("Microphone capture is not supported in this browser.");
+      return;
+    }
+
+    setIsVoiceConnecting(true);
+    setVoiceTranscript("Connecting Mira voice...");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      const pc = new RTCPeerConnection();
+      const dataChannel = pc.createDataChannel("oai-events");
+
+      peerConnectionRef.current = pc;
+      localStreamRef.current = stream;
+      dataChannelRef.current = dataChannel;
+
+      stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+
+      pc.ontrack = (event) => {
+        const [remoteStream] = event.streams;
+        if (!remoteStream || !remoteAudioRef.current) return;
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch(() => {
+          toast.error("Tap Start practice again to allow audio playback.");
+        });
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (["failed", "closed", "disconnected"].includes(pc.connectionState)) {
+          stopVoiceConversation();
+        }
+      };
+
+      dataChannel.onopen = () => {
+        dataChannel.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions:
+                "Start with one short, friendly sentence inviting the student to speak. Then wait.",
+            },
+          }),
+        );
+      };
+      dataChannel.onmessage = (event) => {
+        const data = safeJsonParse(event.data);
+        if (
+          data?.type === "response.audio_transcript.done" &&
+          typeof data.transcript === "string"
+        ) {
+          setVoiceTranscript(data.transcript);
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      if (!offer.sdp) throw new Error("Could not create a voice session offer.");
+      const result = await createRealtimeCall({ data: { sdp: offer.sdp } });
+
+      await pc.setRemoteDescription({ type: "answer", sdp: result.answerSdp });
+      setUsage(result.usage);
+      setIsListening(true);
+      setVoiceTranscript(`Connected with ${result.voice} voice.`);
+      startVoiceTimer();
+    } catch (error) {
+      closeVoiceConnection();
+      toast.error(error instanceof Error ? error.message : "Could not start realtime voice");
+      setVoiceTranscript("");
+    } finally {
+      setIsVoiceConnecting(false);
+    }
   }
 
   return (
@@ -155,7 +390,7 @@ function MentorPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 md:justify-end">
-          <div className="min-w-44 rounded-xl border border-border/60 bg-secondary/40 px-3 py-2">
+          <div className="min-w-52 rounded-xl border border-border/60 bg-secondary/40 px-3 py-2">
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-muted-foreground">Daily messages</span>
               <span className="font-semibold text-foreground">
@@ -167,6 +402,12 @@ function MentorPage() {
               </span>
             </div>
             <Progress value={usagePercent} className="mt-2 h-1.5" />
+            <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+              <span className="text-muted-foreground">Voice practice</span>
+              <span className="font-semibold text-foreground">
+                {usage ? formatSeconds(usage.voiceSecondsRemaining) : "--"}
+              </span>
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -193,7 +434,9 @@ function MentorPage() {
                 <div>
                   <div className="font-display text-base font-semibold">Mission channel</div>
                   <div className="text-xs text-muted-foreground">
-                    {mut.isPending ? "Mira is analyzing your telemetry" : "Context-aware advisor"}
+                    {mut.isPending
+                      ? "Mira is analyzing your telemetry"
+                      : `${selectedModel.label} context-aware advisor`}
                   </div>
                 </div>
               </div>
@@ -298,6 +541,27 @@ function MentorPage() {
             className="border-t border-border/50 bg-background/60 p-3"
           >
             <div className="flex items-end gap-2 rounded-2xl border border-border/70 bg-secondary/20 p-2 focus-within:border-primary/60">
+              <Button
+                type="button"
+                variant={isListening ? "default" : "ghost"}
+                size="icon"
+                onClick={() => {
+                  if (isListening) stopVoiceConversation();
+                  else startVoiceConversation();
+                }}
+                disabled={!canStartVoice && !isListening}
+                className={cn(
+                  "h-11 w-11 shrink-0",
+                  isListening && "bg-rose-500 text-white hover:bg-rose-500/90",
+                )}
+                title={isListening ? "Stop voice practice" : "Start voice practice"}
+              >
+                {isListening || isVoiceConnecting ? (
+                  <MicOff className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
               <Textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -325,8 +589,80 @@ function MentorPage() {
             </div>
           </form>
         </GlassCard>
+        <audio ref={remoteAudioRef} autoPlay className="hidden" />
 
         <aside className="grid content-start gap-4">
+          <GlassCard className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Brain className="h-4 w-4 text-primary-glow" />
+              <h2 className="font-display text-base font-semibold">AI Model</h2>
+            </div>
+            <Select value={modelId} onValueChange={(value) => setModelId(value as MentorModelId)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose mentor model" />
+              </SelectTrigger>
+              <SelectContent>
+                {MENTOR_MODEL_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-2 text-xs text-muted-foreground">{selectedModel.description}</p>
+          </GlassCard>
+
+          <GlassCard className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Mic className="h-4 w-4 text-accent" />
+                <h2 className="font-display text-base font-semibold">Speaking</h2>
+              </div>
+            </div>
+            <Button
+              type="button"
+              className={cn(
+                "w-full gap-2",
+                isListening && "bg-rose-500 text-white hover:bg-rose-500/90",
+              )}
+              variant={isListening ? "default" : "secondary"}
+              onClick={() => {
+                if (isListening) stopVoiceConversation();
+                else startVoiceConversation();
+              }}
+              disabled={!canStartVoice && !isListening}
+            >
+              {isListening || isVoiceConnecting ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+              {isListening
+                ? "Stop live voice"
+                : isVoiceConnecting
+                  ? "Connecting..."
+                  : "Start live voice"}
+            </Button>
+            <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Clock3 className="h-3.5 w-3.5" />
+                Daily voice left
+              </span>
+              <span className="font-semibold">
+                {usage ? formatSeconds(usage.voiceSecondsRemaining) : "--"}
+              </span>
+            </div>
+            <Progress value={voiceUsagePercent} className="mt-2 h-2" />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Direct voice conversation uses OpenAI realtime audio with the marin voice.
+            </p>
+            {voiceTranscript && (
+              <p className="mt-3 rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
+                {voiceTranscript}
+              </p>
+            )}
+          </GlassCard>
+
           <GlassCard className="p-4">
             <div className="mb-4 flex items-center gap-2">
               <Gauge className="h-4 w-4 text-primary-glow" />
@@ -501,4 +837,20 @@ function renderInlineMarkdown(text: string) {
     }
     return part;
   });
+}
+
+function formatSeconds(seconds: number) {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+function safeJsonParse(value: unknown) {
+  if (typeof value !== "string") return null;
+  try {
+    return JSON.parse(value) as { type?: string; transcript?: unknown };
+  } catch {
+    return null;
+  }
 }

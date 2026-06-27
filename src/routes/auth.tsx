@@ -8,25 +8,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getAuthRedirectUrl } from "@/lib/app-url";
 import { toast } from "sonner";
-import { Rocket, Mail, Lock } from "lucide-react";
+import { KeyRound, Lock, Mail, Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({ meta: [{ title: "Sign in — Operation Global Scholar" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
-    mode: s.mode === "signin" || s.mode === "signup" || s.mode === "forgot" ? s.mode : undefined,
+    mode:
+      s.mode === "signin" || s.mode === "signup" || s.mode === "forgot" || s.mode === "verify"
+        ? s.mode
+        : undefined,
   }),
   component: AuthPage,
 });
+
+type AuthMode = "signin" | "signup" | "forgot" | "verify";
 
 function AuthPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const appRedirectUrl = getAuthRedirectUrl("/auth");
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(search.mode ?? "signup");
+  const [mode, setMode] = useState<AuthMode>(search.mode ?? "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -55,11 +61,21 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        toast.success("Mission activated. Welcome, Scholar.");
+        toast.info("Confirm email or add verification code.");
+        setVerificationCode("");
+        setMode("verify");
       } else if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back, Commander.");
+      } else if (mode === "verify") {
+        const { error } = await supabase.auth.verifyOtp({
+          email,
+          token: verificationCode.trim(),
+          type: "signup",
+        });
+        if (error) throw error;
+        toast.success("Email confirmed. Welcome, Scholar.");
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: getAuthRedirectUrl("/reset-password"),
@@ -109,10 +125,16 @@ function AuthPage() {
                 ? "Begin your mission"
                 : mode === "signin"
                   ? "Welcome back"
-                  : "Recover access"}
+                  : mode === "verify"
+                    ? "Confirm email"
+                    : "Recover access"}
             </div>
             <div className="text-xs text-muted-foreground">
-              {mode === "forgot" ? "We'll send a secure recovery link" : "Operation Global Scholar"}
+              {mode === "forgot"
+                ? "We'll send a secure recovery link"
+                : mode === "verify"
+                  ? "Use the code from your inbox"
+                  : "Operation Global Scholar"}
             </div>
           </div>
         </div>
@@ -144,7 +166,27 @@ function AuthPage() {
               />
             </div>
           </div>
-          {mode !== "forgot" && (
+          {mode === "verify" && (
+            <div>
+              <Label htmlFor="verification-code">Verification code</Label>
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+                <Input
+                  id="verification-code"
+                  inputMode="numeric"
+                  required
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  placeholder="Enter email code"
+                  className="pl-9"
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Confirm from the email link or paste the verification code here.
+              </p>
+            </div>
+          )}
+          {mode !== "forgot" && mode !== "verify" && (
             <div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
@@ -184,11 +226,13 @@ function AuthPage() {
                 ? "Activate mission"
                 : mode === "signin"
                   ? "Re-enter command"
-                  : "Send recovery link"}
+                  : mode === "verify"
+                    ? "Confirm email"
+                    : "Send recovery link"}
           </Button>
         </form>
 
-        {mode !== "forgot" && (
+        {(mode === "signup" || mode === "signin") && (
           <>
             <div className="my-4 flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
               <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
@@ -210,7 +254,9 @@ function AuthPage() {
             ? "Already enlisted? Sign in."
             : mode === "signin"
               ? "New scholar? Begin your mission."
-              : "Back to sign in"}
+              : mode === "verify"
+                ? "Back to sign in"
+                : "Back to sign in"}
         </button>
       </motion.div>
     </div>
