@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/scholarships")({
-  head: () => ({ meta: [{ title: "Scholarship Vault — Operation Global Scholar" }] }),
+  head: () => ({ meta: [{ title: "Scholarship Vault — Scholar Quest" }] }),
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getUser();

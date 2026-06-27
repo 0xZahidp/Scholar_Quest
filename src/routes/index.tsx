@@ -7,7 +7,7 @@ export const Route = createFileRoute("/")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Operation Global Scholar — Mission Control for Future Scholars" },
+      { title: "Scholar Quest — Mission Control for Future Scholars" },
       {
         name: "description",
         content:
@@ -27,7 +27,7 @@ function Landing() {
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent glow-primary">
             <Rocket className="h-5 w-5 text-white" />
           </div>
-          <span className="font-display text-lg font-bold">Operation Global Scholar</span>
+          <span className="font-display text-lg font-bold">Scholar Quest</span>
         </div>
         <Link
           to="/auth"

@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 
 export const Route = createFileRoute("/_authenticated/finances")({
-  head: () => ({ meta: [{ title: "War Chest — Operation Global Scholar" }] }),
+  head: () => ({ meta: [{ title: "War Chest — Scholar Quest" }] }),
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getUser();

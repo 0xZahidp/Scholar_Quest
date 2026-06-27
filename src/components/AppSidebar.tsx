@@ -68,7 +68,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="leading-tight">
-              <div className="font-display text-sm font-bold">OGS</div>
+              <div className="font-display text-sm font-bold">Scholar Quest</div>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
                 Mission Control
               </div>

@@ -49,7 +49,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/mentor")({
-  head: () => ({ meta: [{ title: "AI Mentor — Operation Global Scholar" }] }),
+  head: () => ({ meta: [{ title: "AI Mentor — Scholar Quest" }] }),
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getUser();

@@ -33,7 +33,7 @@ import {
 } from "@/lib/professors.functions";
 
 export const Route = createFileRoute("/_authenticated/professors")({
-  head: () => ({ meta: [{ title: "Professor Outreach — OGS" }] }),
+  head: () => ({ meta: [{ title: "Professor Outreach — Scholar Quest" }] }),
   component: ProfessorsPage,
 });
 

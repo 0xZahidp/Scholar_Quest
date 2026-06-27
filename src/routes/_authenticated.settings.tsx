@@ -30,7 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { UserIdentity } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Settings — OGS" }] }),
+  head: () => ({ meta: [{ title: "Settings — Scholar Quest" }] }),
   component: SettingsPage,
 });
 

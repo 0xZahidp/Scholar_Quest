@@ -59,7 +59,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/ielts")({
-  head: () => ({ meta: [{ title: "IELTS Intelligence — Operation Global Scholar" }] }),
+  head: () => ({ meta: [{ title: "IELTS Intelligence — Scholar Quest" }] }),
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getUser();

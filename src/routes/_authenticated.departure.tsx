@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ChecklistView } from "@/components/ChecklistView";
 
 export const Route = createFileRoute("/_authenticated/departure")({
-  head: () => ({ meta: [{ title: "Departure Sequence — OGS" }] }),
+  head: () => ({ meta: [{ title: "Departure Sequence — Scholar Quest" }] }),
   component: () => (
     <ChecklistView
       kind="departure"

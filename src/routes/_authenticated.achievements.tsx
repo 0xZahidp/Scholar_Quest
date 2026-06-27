@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getAchievements } from "@/lib/achievements.functions";
 
 export const Route = createFileRoute("/_authenticated/achievements")({
-  head: () => ({ meta: [{ title: "Achievements — OGS" }] }),
+  head: () => ({ meta: [{ title: "Achievements — Scholar Quest" }] }),
   component: AchievementsPage,
 });
 

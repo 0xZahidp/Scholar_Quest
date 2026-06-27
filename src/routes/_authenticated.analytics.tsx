@@ -12,7 +12,7 @@ import { getAnalytics } from "@/lib/analytics.functions";
 import { Trophy, BookOpen, Send, GraduationCap, FileText, Wallet, Flame, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
-  head: () => ({ meta: [{ title: "Telemetry — OGS" }] }),
+  head: () => ({ meta: [{ title: "Analytics — Scholar Quest" }] }),
   component: AnalyticsPage,
 });
 

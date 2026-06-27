@@ -12,7 +12,7 @@ import { KeyRound, Lock, Mail, Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Sign in — Operation Global Scholar" }] }),
+  head: () => ({ meta: [{ title: "Sign in — Scholar Quest" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     mode:
       s.mode === "signin" || s.mode === "signup" || s.mode === "forgot" || s.mode === "verify"
@@ -134,7 +134,7 @@ function AuthPage() {
                 ? "We'll send a secure recovery link"
                 : mode === "verify"
                   ? "Use the code from your inbox"
-                  : "Operation Global Scholar"}
+                  : "Scholar Quest"}
             </div>
           </div>
         </div>

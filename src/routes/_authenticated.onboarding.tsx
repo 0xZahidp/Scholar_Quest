@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
-  head: () => ({ meta: [{ title: "Begin your mission — Operation Global Scholar" }] }),
+  head: () => ({ meta: [{ title: "Begin your mission — Scholar Quest" }] }),
   component: OnboardingPage,
 });
 

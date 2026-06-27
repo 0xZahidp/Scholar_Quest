@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Operation Global Scholar — Midnight Indigo design system */
+/* Scholar Quest — Midnight Indigo design system */
 
 @theme inline {
   --font-display: "Space Grotesk", system-ui, sans-serif;

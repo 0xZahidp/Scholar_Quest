@@ -16,6 +16,16 @@ import { Toaster } from "@/components/ui/sonner";
 import { XpFloatHost } from "@/components/XpFloat";
 import { reportClientCrash } from "@/lib/crash-report.functions";
 
+const SITE_NAME = "Scholar Quest";
+const SITE_URL = (import.meta.env.VITE_APP_URL ?? "https://sq.zahidp.com").replace(/\/$/, "");
+const SITE_TITLE =
+  "Scholar Quest | Scholarship Planner, IELTS Tracker, and Application Dashboard";
+const SITE_DESCRIPTION =
+  "Plan fully funded scholarship applications, track IELTS progress, organize documents, shortlist universities, manage finances, and stay ready for deadlines.";
+const SOCIAL_DESCRIPTION =
+  "A focused dashboard for scholarship deadlines, IELTS prep, university shortlists, documents, finances, visa tasks, and departure planning.";
+const SOCIAL_IMAGE = `${SITE_URL}/logo.svg`;
+
 function NotFoundComponent() {
   return (
     <div className="grid min-h-screen place-items-center px-4">
@@ -91,13 +101,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       {
-        title:
-          "Operation Global Scholar | Scholarship Planner, IELTS Tracker, and Application Dashboard",
+        title: SITE_TITLE,
       },
       {
         name: "description",
-        content:
-          "Plan fully funded scholarship applications, track IELTS progress, organize documents, shortlist universities, manage finances, and stay ready for deadlines.",
+        content: SITE_DESCRIPTION,
       },
       {
         name: "keywords",
@@ -105,30 +113,40 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "scholarship planner, fully funded scholarships, study abroad dashboard, IELTS tracker, university applications, scholarship documents, graduate scholarships",
       },
       { name: "robots", content: "index, follow" },
-      { name: "author", content: "Operation Global Scholar" },
+      { name: "author", content: SITE_NAME },
+      { name: "application-name", content: SITE_NAME },
+      { name: "apple-mobile-web-app-title", content: SITE_NAME },
       { name: "theme-color", content: "#0a0a1a" },
-      { property: "og:site_name", content: "Operation Global Scholar" },
+      { property: "og:site_name", content: SITE_NAME },
       {
         property: "og:title",
-        content: "Operation Global Scholar | Scholarship Application Command Center",
+        content: "Scholar Quest | Scholarship Application Command Center",
       },
       {
         property: "og:description",
-        content:
-          "A focused dashboard for scholarship deadlines, IELTS prep, university shortlists, documents, finances, visa tasks, and departure planning.",
+        content: SOCIAL_DESCRIPTION,
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:image", content: SOCIAL_IMAGE },
+      { property: "og:image:type", content: "image/svg+xml" },
+      { property: "og:image:width", content: "512" },
+      { property: "og:image:height", content: "512" },
+      { property: "og:image:alt", content: "Scholar Quest graduation cap logo" },
       { property: "og:locale", content: "en_US" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Operation Global Scholar" },
+      { name: "twitter:title", content: SITE_TITLE },
       {
         name: "twitter:description",
         content:
           "Track every step from IELTS prep to scholarship submission in one focused study abroad dashboard.",
       },
+      { name: "twitter:image", content: SOCIAL_IMAGE },
+      { name: "twitter:image:alt", content: "Scholar Quest graduation cap logo" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "canonical", href: SITE_URL },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "apple-touch-icon", href: "/logo.svg" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
